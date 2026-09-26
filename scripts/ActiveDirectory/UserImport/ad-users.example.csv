@@ -1,0 +1,2 @@
+Displayname,Firstname,Lastname,OU,SAM,Maildomain,Description,Password
+Example User,Example,User,"OU=Users,DC=example,DC=com",exampleuser,example.com,Example account,CHANGE_ME_BEFORE_RUNNING

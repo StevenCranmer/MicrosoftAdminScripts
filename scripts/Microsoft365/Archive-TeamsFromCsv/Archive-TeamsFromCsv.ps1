@@ -1,0 +1,175 @@
+# Example: .\Archive-TeamsFromCsv.ps1 -CsvPath .\teams.example.csv
+# Variables: -CsvPath is a CSV with a TeamId column; replace the dummy ID before running.
+#
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true, Position = 0)]
+    [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
+    [string]$CsvPath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Read-ExactYesNo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Prompt
+    )
+
+    while ($true) {
+        $answer = (Read-Host "$Prompt [Y/N]").Trim()
+        switch -Regex ($answer) {
+            '^[Yy]$' { return $true }
+            '^[Nn]$' { return $false }
+            default   { Write-Host 'Enter Y or N.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+if (-not (Get-Module -ListAvailable -Name MicrosoftTeams)) {
+    throw "The MicrosoftTeams PowerShell module is not installed. Install it with: Install-Module MicrosoftTeams -Scope CurrentUser"
+}
+
+Import-Module MicrosoftTeams
+$csvRows = @(Import-Csv -LiteralPath $CsvPath)
+
+if ($csvRows.Count -eq 0) {
+    throw 'The CSV is empty.'
+}
+
+if (-not ($csvRows[0].PSObject.Properties.Name -contains 'TeamId')) {
+    throw "The CSV must contain a column named 'TeamId'."
+}
+
+$teamIds = @(
+    $csvRows |
+        ForEach-Object { [string]$_.TeamId } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+
+if ($teamIds.Count -eq 0) {
+    throw 'The CSV contains no TeamId values.'
+}
+
+$invalidIds = @()
+foreach ($teamId in $teamIds) {
+    $parsedGuid = [guid]::Empty
+    if (-not [guid]::TryParse($teamId, [ref]$parsedGuid)) {
+        $invalidIds += $teamId
+    }
+}
+
+if ($invalidIds.Count -gt 0) {
+    Write-Host 'Invalid TeamId values:' -ForegroundColor Red
+    $invalidIds | ForEach-Object { Write-Host "  $_" }
+    throw 'No teams were archived. Correct the CSV and run the script again.'
+}
+
+Write-Host 'Connecting to Microsoft Teams...'
+Connect-MicrosoftTeams | Out-Null
+
+$teamsToArchive = [System.Collections.Generic.List[object]]::new()
+$lookupFailures = [System.Collections.Generic.List[object]]::new()
+
+foreach ($teamId in $teamIds) {
+    try {
+        $team = Get-Team -GroupId $teamId -ErrorAction Stop
+        if ($null -eq $team) {
+            throw 'No team was returned.'
+        }
+
+        $teamsToArchive.Add([pscustomobject]@{
+            DisplayName = $team.DisplayName
+            TeamId      = $teamId
+        })
+    }
+    catch {
+        $lookupFailures.Add([pscustomobject]@{
+            TeamId = $teamId
+            Error  = $_.Exception.Message
+        })
+    }
+}
+
+if ($lookupFailures.Count -gt 0) {
+    Write-Host ''
+    Write-Host 'The following Team IDs could not be resolved:' -ForegroundColor Red
+    $lookupFailures | Format-Table -AutoSize | Out-Host
+    throw 'No teams were archived because not every TeamId could be resolved.'
+}
+
+Write-Host ''
+Write-Host 'THE FOLLOWING TEAMS WILL BE ARCHIVED:' -ForegroundColor Red
+Write-Host ''
+$teamsToArchive |
+    Sort-Object DisplayName |
+    Format-Table DisplayName, TeamId -AutoSize |
+    Out-Host
+
+Write-Host "Total: $($teamsToArchive.Count) team(s)" -ForegroundColor Yellow
+Write-Host ''
+
+if (-not (Read-ExactYesNo 'Are you absolutely sure about this?')) {
+    Write-Host 'Cancelled. No teams were archived.'
+    exit 0
+}
+
+if (-not (Read-ExactYesNo 'FINAL CONFIRMATION: archive every team listed above?')) {
+    Write-Host 'Cancelled. No teams were archived.'
+    exit 0
+}
+
+$results = @(
+    foreach ($team in $teamsToArchive) {
+        try {
+            # The cmdlet writes TeamSettings objects to the success stream.
+            # Suppress them so $results contains only the records below.
+            Set-TeamArchivedState -GroupId $team.TeamId -Archived:$true -ErrorAction Stop | Out-Null
+
+            [pscustomobject]@{
+                DisplayName = $team.DisplayName
+                TeamId      = $team.TeamId
+                Result      = 'Archived'
+                Error       = $null
+            }
+        }
+        catch {
+            if ($_.Exception.Message -match 'already been archived') {
+                [pscustomobject]@{
+                    DisplayName = $team.DisplayName
+                    TeamId      = $team.TeamId
+                    Result      = 'Already archived'
+                    Error       = $null
+                }
+            }
+            else {
+                [pscustomobject]@{
+                    DisplayName = $team.DisplayName
+                    TeamId      = $team.TeamId
+                    Result      = 'Failed'
+                    Error       = $_.Exception.Message
+                }
+            }
+        }
+    }
+)
+
+Write-Host ''
+Write-Host 'Archive results:'
+$results | Format-Table DisplayName, TeamId, Result, Error -Wrap -AutoSize | Out-Host
+
+$archivedCount = @($results | Where-Object { $_.Result -eq 'Archived' }).Count
+$alreadyArchivedCount = @($results | Where-Object { $_.Result -eq 'Already archived' }).Count
+$failed = @($results | Where-Object { $_.Result -eq 'Failed' })
+
+Write-Host ''
+Write-Host "Archived now:       $archivedCount" -ForegroundColor Green
+Write-Host "Already archived:   $alreadyArchivedCount" -ForegroundColor Yellow
+Write-Host "Failed:              $($failed.Count)" -ForegroundColor $(if ($failed.Count -gt 0) { 'Red' } else { 'Green' })
+
+if ($failed.Count -gt 0) {
+    throw "$($failed.Count) team(s) could not be archived. Review the results above."
+}

@@ -1,0 +1,3 @@
+The MSG converters read Outlook .msg files from an input directory. Place your own .msg files there. This text file is a layout example, not an Outlook message.
+input/
+  example-message.msg  (replace with a real .msg file)
