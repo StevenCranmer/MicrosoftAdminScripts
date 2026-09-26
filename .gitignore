@@ -1,0 +1,16 @@
+# Generated exports and private inputs must stay out of a public repository.
+*.csv
+!**/*.example.csv
+*.intunewin
+*.msg
+*.pdf
+*.zip
+*.log
+*.json
+
+# Bundled third-party binaries are not part of the public script collection.
+*.dll
+*.exe
+*.sys
+*.bin
+*.cat
