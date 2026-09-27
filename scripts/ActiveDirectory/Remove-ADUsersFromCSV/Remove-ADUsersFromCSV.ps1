@@ -1,5 +1,8 @@
 # Example: .\Remove-ADUsersFromCSV.ps1 -CsvPath .\ad-removals.example.csv -DisableOnly -WhatIf
 # Variables: -CsvPath must have UserPrincipalName; -DisableOnly avoids deletion; -MoveToOU chooses the destination OU; -LogPath is the audit log.
+# Purpose: Disable or delete AD users listed by UPN in a CSV.
+# Requires: ActiveDirectory PowerShell module (RSAT), AD rights, and ad-removals.example.csv as a template.
+# Effect: Writes a transcript log; without -DisableOnly it can delete accounts. Use -WhatIf first.
 #
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
@@ -19,12 +22,28 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-try {
-    Import-Module ActiveDirectory -ErrorAction Stop
-} catch {
-    Write-Error "ActiveDirectory module not found. Install RSAT or run on a machine with AD PowerShell tools. $_"
-    return
+# Windows administration tools are installed as OS features, not from PSGallery.
+if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
+    $answer = Read-Host "ActiveDirectory tools are missing. Install the Windows administration tools now? [y/N]"
+    if ($answer -notmatch '^(?i:y|yes)$') {
+        throw "ActiveDirectory tools are required. Install them through Windows optional features or Server Manager, then rerun."
+    }
+    $isAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdministrator) {
+        throw 'Installing Windows administration tools requires an elevated PowerShell session. Reopen PowerShell as administrator and rerun.'
+    }
+    $isServer = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).ProductType -ne 1
+    if ($isServer) {
+        if (-not (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) { throw 'Install-WindowsFeature is unavailable. Install the tools through Server Manager.' }
+        $result = Install-WindowsFeature -Name 'RSAT-AD-PowerShell' -ErrorAction Stop
+        if (-not $result.Success) { throw 'Windows reported that the feature installation did not succeed.' }
+    } else {
+        if (-not (Get-Command Add-WindowsCapability -ErrorAction SilentlyContinue)) { throw 'Add-WindowsCapability is unavailable. Install the tools through Windows optional features.' }
+        $result = Add-WindowsCapability -Online -Name 'Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0' -ErrorAction Stop
+        if ($result.RestartNeeded) { throw 'The tools need a restart before they can be used. Restart Windows, then rerun.' }
+    }
 }
+Import-Module ActiveDirectory -ErrorAction Stop
 
 if (-not (Test-Path -Path $CsvPath)) {
     Write-Error "CSV not found at: $CsvPath"

@@ -1,5 +1,8 @@
 # Example: .\Copy-DHCPExclusions.ps1 -SourceServer 'SOURCE-DHCP' -TargetServer 'TARGET-DHCP'
 # Variables: -SourceServer is the DHCP source; -TargetServer is the destination. Replace both example names.
+# Purpose: Copy exclusion ranges across scopes shared by two DHCP servers.
+# Requires: DhcpServer PowerShell commands and rights on source and target DHCP servers.
+# Effect: Adds missing ranges on the target server; review both server names first.
 #
 
 <#
@@ -29,6 +32,29 @@ param(
     [string]$SourceServer = 'SOURCE-DHCP',
     [string]$TargetServer = 'TARGET-DHCP'
 )
+
+# Windows administration tools are installed as OS features, not from PSGallery.
+if (-not (Get-Module -ListAvailable -Name DhcpServer)) {
+    $answer = Read-Host "DhcpServer tools are missing. Install the Windows administration tools now? [y/N]"
+    if ($answer -notmatch '^(?i:y|yes)$') {
+        throw "DhcpServer tools are required. Install them through Windows optional features or Server Manager, then rerun."
+    }
+    $isAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdministrator) {
+        throw 'Installing Windows administration tools requires an elevated PowerShell session. Reopen PowerShell as administrator and rerun.'
+    }
+    $isServer = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).ProductType -ne 1
+    if ($isServer) {
+        if (-not (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) { throw 'Install-WindowsFeature is unavailable. Install the tools through Server Manager.' }
+        $result = Install-WindowsFeature -Name 'RSAT-DHCP' -ErrorAction Stop
+        if (-not $result.Success) { throw 'Windows reported that the feature installation did not succeed.' }
+    } else {
+        if (-not (Get-Command Add-WindowsCapability -ErrorAction SilentlyContinue)) { throw 'Add-WindowsCapability is unavailable. Install the tools through Windows optional features.' }
+        $result = Add-WindowsCapability -Online -Name 'Rsat.DHCP.Tools~~~~0.0.1.0' -ErrorAction Stop
+        if ($result.RestartNeeded) { throw 'The tools need a restart before they can be used. Restart Windows, then rerun.' }
+    }
+}
+Import-Module DhcpServer -ErrorAction Stop
 
 function Get-Scopes {
     param([string]$Server)

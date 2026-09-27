@@ -1,6 +1,13 @@
 # Example: .\Remediate_PreStage_CheckDetentions.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Stage detention reminder scripts, launchers, and startup registration.
+# Requires: Run with rights to write C:\ProgramData and the common Startup folder.
+# Effect: Creates files and a startup shortcut; review the embedded Bromcom URL and schedule.
 #
+foreach ($command in @('Get-ScheduledTask', 'Register-ScheduledTask', 'Unregister-ScheduledTask')) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Windows ScheduledTasks command $command is unavailable on this device." }
+}
+
 # Remediate_PreStage_CheckDetentions.ps1
 $ErrorActionPreference = 'Stop'
 

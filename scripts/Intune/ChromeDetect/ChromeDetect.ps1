@@ -1,5 +1,8 @@
 # Example: .\ChromeDetect.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Detect Chrome for a removal remediation.
+# Requires: Run in the device context used by your Intune remediation package.
+# Effect: Read-only: exit 1 when Chrome is installed, 0 when absent.
 #
 try
 {  

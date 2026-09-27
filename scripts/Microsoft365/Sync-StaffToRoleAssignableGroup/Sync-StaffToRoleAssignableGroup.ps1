@@ -1,5 +1,8 @@
 # Example: .\Sync-StaffToRoleAssignableGroup.ps1 -SourceGroupId '<SOURCE_GROUP_ID>' -TargetGroupId '<TARGET_GROUP_ID>' -DryRun
 # Variables: -SourceGroupId and -TargetGroupId select groups; -DryRun previews; TenantId, ClientId and CertThumbprint are optional app authentication settings.
+# Purpose: Sync direct user membership from a source group to a role-assignable target.
+# Requires: Microsoft.Graph modules and delegated or certificate authentication described below.
+# Effect: Adds missing members; optional removal mode deletes extras. Start with -DryRun.
 #
 <#
 .SYNOPSIS
@@ -55,10 +58,23 @@ param(
 # ------------------------------
 # 0) Connect to Microsoft Graph
 # ------------------------------
-if (-not (Get-Module Microsoft.Graph -ListAvailable)) {
-  Write-Host "Installing Microsoft.Graph module..." -ForegroundColor Yellow
-  Install-Module Microsoft.Graph -Scope CurrentUser -Force
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
 }
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication','Microsoft.Graph.Groups','Microsoft.Graph.Users')
 Import-Module Microsoft.Graph.Authentication
 Import-Module Microsoft.Graph.Groups
 Import-Module Microsoft.Graph.Users

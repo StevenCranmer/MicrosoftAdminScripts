@@ -1,5 +1,8 @@
 # Example: .\detection.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Detect the Windows Hello PIN configuration folder.
+# Requires: Run in device context with access to the LocalService Ngc path.
+# Effect: Exit 1 when the folder exists; exit 0 when absent or when detection errors.
 #
 # Set Variables
 $Paths = @("C:\Windows\ServiceProfiles\LocalService\AppData\Local\Microsoft\Ngc")

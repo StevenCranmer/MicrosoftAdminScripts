@@ -1,5 +1,8 @@
 # Example: .\Remediate-BlockGuestWiFi.ps1
 # Variables: Set $ssid to the SSID to block and remove; Example-Guest is a dummy.
+# Purpose: Block a guest SSID and remove its saved Wi-Fi profile.
+# Requires: Windows wireless service; replace the example SSID before deployment.
+# Effect: May disconnect the current Wi-Fi connection and removes matching saved profiles.
 #
 # Block and remove Example-Guest
 $ssid = "Example-Guest"

@@ -1,5 +1,8 @@
 # Example: .\Detect-BlockGuestWiFi.ps1
 # Variables: Set $ssid to the SSID to check; Example-Guest is a dummy.
+# Purpose: Check whether a guest SSID is blocked and its saved profile removed.
+# Requires: Windows wireless interface; replace the example SSID before deployment.
+# Effect: Read-only: exit 0 when blocked with no saved profile, 1 otherwise.
 #
 # Detect if Example-Guest is blocked and if any profile exists
 $ssid = "Example-Guest"

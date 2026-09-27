@@ -1,5 +1,8 @@
 # Example: .\Reset-CloudUserPasswordsFromCsv.ps1 -CsvPath .\password-resets.example.csv
 # Variables: -CsvPath needs UserName and UserPassword columns. Replace every dummy value; protect and delete real password files after use.
+# Purpose: Reset cloud user passwords from a CSV.
+# Requires: Microsoft.Graph.Users, User.ReadWrite.All, and password-resets.example.csv as a template.
+# Effect: Changes passwords and writes a results CSV beside the input; protect both files.
 #
 [CmdletBinding()]
 param(
@@ -8,6 +11,23 @@ param(
     [string]$CsvPath
 )
 
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication','Microsoft.Graph.Users')
 $ErrorActionPreference = "Stop"
 
 # Resolve and validate the input file.

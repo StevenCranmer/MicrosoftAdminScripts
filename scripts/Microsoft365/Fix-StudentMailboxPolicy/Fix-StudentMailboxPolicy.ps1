@@ -1,7 +1,27 @@
 # Example: .\Fix-StudentMailboxPolicy.ps1
 # Variables: Set $groupName to the target M365 group and $policyName to the mailbox policy to apply.
+# Purpose: Apply a named OWA mailbox policy to user members of a Microsoft 365 group.
+# Requires: ExchangeOnlineManagement, Microsoft.Graph commands, and rights to update mailboxes.
+# Effect: Changes mailbox policies for matching users; review $groupName and $policyName.
 #
 # Connect to Exchange Online
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('ExchangeOnlineManagement','Microsoft.Graph.Authentication','Microsoft.Graph.Groups','Microsoft.Graph.Users')
 Connect-ExchangeOnline
 
 # Connect to Microsoft Graph

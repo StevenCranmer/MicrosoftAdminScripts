@@ -1,5 +1,8 @@
 # Example: .\Detect_PreStage_CheckDetentions.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Check whether the detention reminder files and startup shortcut are staged.
+# Requires: Windows device context with access to C:\ProgramData\CheckDetentions.
+# Effect: Read-only check; exit 0 means staged and exit 1 means remediation is needed.
 #
 # Detect_PreStage_CheckDetentions.ps1
 # Exit 0 = compliant, Exit 1 = not compliant (trigger remediation)

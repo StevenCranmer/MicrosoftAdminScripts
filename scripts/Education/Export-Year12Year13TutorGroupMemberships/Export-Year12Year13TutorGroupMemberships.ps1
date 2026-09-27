@@ -1,5 +1,8 @@
 ﻿# Example: .\Export-Year12Year13TutorGroupMemberships.ps1 -OutputPath .\tutor-groups.csv
 # Variables: Set $TutorGroups to your group names; -OutputPath selects the report file.
+# Purpose: Report membership of the configured tutor groups.
+# Requires: Microsoft.Graph PowerShell commands and permission to read groups and users.
+# Effect: Writes a CSV containing user details; check the hard-coded year suffix before use.
 #
 [CmdletBinding()]
 param(
@@ -7,6 +10,23 @@ param(
     [string]$OutputPath = ".\Year12Year13TutorGroupMemberships.csv"
 )
 
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication','Microsoft.Graph.Groups','Microsoft.Graph.Users')
 $ErrorActionPreference = "Stop"
 
 # Replace these dummy names with the tutor groups to export.

@@ -1,5 +1,8 @@
 # Example: .\Wipe-ExamOneDrives.ps1 -GroupId '<GROUP_ID>' -WhatIf
 # Variables: -GroupId selects users; -WhatIf previews. -PermanentDelete makes the deletion permanent.
+# Purpose: Delete root OneDrive items for users in a specified group.
+# Requires: Microsoft.Graph.Authentication; the script prompts for delegated sign-in if no session exists.
+# Effect: Use -WhatIf first; -PermanentDelete bypasses the recycle bin.
 #
 # .\Wipe-ExamOneDrives.ps1 -GroupId "00000000-0000-0000-0000-000000000000" -PermanentDelete -WhatIf
 # .\Wipe-ExamOneDrives.ps1 -GroupId "00000000-0000-0000-0000-000000000000" -PermanentDelete
@@ -25,6 +28,32 @@ param(
 # -----------------------------
 # HELPERS
 # -----------------------------
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication')
+$requiredScopes = @('GroupMember.Read.All','Files.ReadWrite.All','User.Read.All')
+$graphContext = Get-MgContext
+$missingScopes = if ($graphContext -and $graphContext.AuthType -ne "AppOnly") {
+    @($requiredScopes | Where-Object { $_ -notin @($graphContext.Scopes) })
+} else { @() }
+if (-not $graphContext -or $missingScopes.Count) {
+    Write-Host "Microsoft Graph sign-in is required; a sign-in prompt will open."
+    Connect-MgGraph -Scopes $requiredScopes -NoWelcome -ErrorAction Stop | Out-Null
+}
 function Convert-GraphResponse {
     param($Response)
     if ($Response -is [string]) {

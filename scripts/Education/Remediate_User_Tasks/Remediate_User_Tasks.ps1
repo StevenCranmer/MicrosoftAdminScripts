@@ -1,6 +1,13 @@
 # Example: .\Remediate_User_Tasks.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Repair the current user's detention reminder tasks.
+# Requires: Run in user context after pre-stage files exist in C:\ProgramData\CheckDetentions.
+# Effect: Creates or replaces reminder and self-heal scheduled tasks.
 #
+foreach ($command in @('Register-ScheduledTask', 'Unregister-ScheduledTask')) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Windows ScheduledTasks command $command is unavailable on this device." }
+}
+
 # Remediate_User_Tasks.ps1
 $ErrorActionPreference = 'Stop'
 

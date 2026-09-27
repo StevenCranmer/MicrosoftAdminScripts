@@ -1,6 +1,30 @@
 # Example: python .\msg_subfolders_to_pdf.py
 # Variables: Set SOURCE to your MSG folder; see msg-input.example.txt for the folder layout.
+# Purpose: Create a PDF per MSG subfolder from message content.
+# Requires: Python packages extract-msg and reportlab; set SOURCE before running.
+# Effect: Writes PDFs and a log under DEST; attachments are not embedded by this variant.
 #
+# Check dependencies before importing them so a missing package produces a useful prompt.
+import importlib.util
+import subprocess
+import sys
+
+_required_packages = {'extract_msg': 'extract-msg', 'reportlab': 'reportlab'}
+_missing_packages = [package for module, package in _required_packages.items()
+                     if importlib.util.find_spec(module) is None]
+if _missing_packages:
+    print("Missing Python packages: " + ", ".join(_missing_packages))
+    try:
+        answer = input("Install these packages with pip for this Python interpreter? [y/N] ")
+    except EOFError:
+        answer = ""
+    if answer.strip().lower() not in ("y", "yes"):
+        raise SystemExit("Install with: " + sys.executable + " -m pip install " + " ".join(_missing_packages))
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *_missing_packages])
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit("Package installation failed. Check pip and network access, then retry.") from exc
+
 from pathlib import Path
 from datetime import datetime
 from html.parser import HTMLParser

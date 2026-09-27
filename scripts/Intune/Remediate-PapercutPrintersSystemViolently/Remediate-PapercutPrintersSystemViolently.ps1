@@ -1,6 +1,13 @@
 # Example: .\Remediate-PapercutPrintersSystemViolently.ps1
 # Variables: Set $TargetNames to the printer queue names to remove. Review the driver cleanup before running.
+# Purpose: Remove configured queues, per-user connections, and unused drivers.
+# Requires: Administrative/SYSTEM context; review $TargetNames and $driversToRemove.
+# Effect: Changes printer state across profiles and can delete drivers; use only when that scope is intended.
 #
+foreach ($command in @('Get-Printer', 'Remove-Printer', 'Get-PrinterDriver', 'Remove-PrinterDriver')) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Windows PrintManagement command $command is unavailable on this device." }
+}
+
 # ===========================
 # Intune Remediation Script
 # ===========================

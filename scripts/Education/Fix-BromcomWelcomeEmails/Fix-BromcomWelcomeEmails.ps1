@@ -1,5 +1,8 @@
 # Example: .\Fix-BromcomWelcomeEmails.ps1
 # Variables: Set $patternAddress to the unique address fragment to match; the sample fragment is a dummy.
+# Purpose: Disable welcome messages for matching Microsoft 365 groups.
+# Requires: ExchangeOnlineManagement and permission to change Unified Groups; set $patternAddress first.
+# Effect: The preview is followed immediately by changes and a CSV report; there is no confirmation prompt.
 #
 <#
 Bulk-disable the Microsoft 365 Group welcome email for any group where the
@@ -13,11 +16,25 @@ Examples matched:
 #>
 
 # --- 1) Connect to Exchange Online ---
-try {
-    if (-not (Get-Module ExchangeOnlineManagement -ListAvailable)) {
-        Install-Module ExchangeOnlineManagement -Scope AllUsers -Force
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
     }
-    Connect-ExchangeOnline
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('ExchangeOnlineManagement')
+try {
+    Connect-ExchangeOnline -ErrorAction Stop
 }
 catch {
     Write-Error "Failed to connect to Exchange Online: $($_.Exception.Message)"
@@ -53,7 +70,7 @@ $target |
 
 Write-Host "`nPreview: $($target.Count) group(s) would be updated." -ForegroundColor Cyan
 
-# --- 6) APPLY (Uncomment to execute) ---
+# --- 6) APPLY (runs immediately after preview; no confirmation prompt) ---
 $log = @()
 foreach ($g in $target) {
     Write-Host ("Disabling welcome email for: {0} ({1})" -f $g.DisplayName, $g.PrimarySmtpAddress) -ForegroundColor Yellow

@@ -1,6 +1,11 @@
 # Example: .\Detect_User_Tasks.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Check the current user's detention reminder scheduled tasks.
+# Requires: Run in the affected user context after the pre-stage script has deployed its files.
+# Effect: Read-only check; reports compliance through its output and exit code.
 #
+if (-not (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue)) { throw 'Windows ScheduledTasks cmdlets are unavailable on this device.' }
+
 # Detect_User_Tasks.ps1
 $ErrorActionPreference = 'SilentlyContinue'
 

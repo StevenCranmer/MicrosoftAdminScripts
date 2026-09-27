@@ -1,6 +1,11 @@
 # Example: .\Register_Teacher_Tasks.ps1
 # Variables: No user-supplied variables; this runs in the current account or device context.
+# Purpose: Register detention reminder tasks for the current user.
+# Requires: Run in the target user context after pre-stage files exist in C:\ProgramData\CheckDetentions.
+# Effect: Creates or repairs scheduled tasks for a 13:05 reminder and self-heal at logon.
 #
+if (-not (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) { throw 'Windows ScheduledTasks cmdlets are unavailable on this device.' }
+
 # Register_Teacher_Tasks.ps1 (fixed)
 # Creates (or repairs) the per-user 13:05 task and the per-user SelfHeal-at-logon task.
 $ErrorActionPreference = 'Stop'

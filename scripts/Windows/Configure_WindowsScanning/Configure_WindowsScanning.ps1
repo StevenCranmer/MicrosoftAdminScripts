@@ -1,36 +1,26 @@
 # Example: .\Configure_WindowsScanning.ps1 -accountNames 'EXAMPLE\ScanUsers'
 # Variables: Replace example parameter values with your own. Run Get-Help for parameter details where available.
+# Purpose: Grant a named account Windows scanning permissions for Lansweeper.
+# Requires: Run elevated; supply -accountNames and optionally set logging parameters.
+# Effect: Changes WMI, registry, and related access settings; test on a nonproduction device.
 #
 <#
 .SYNOPSIS
-    This script is used to give an account/group the required permissions for windows scanning with Lansweeper.
+    Grant the specified accounts permissions used by Lansweeper Windows scanning.
 .DESCRIPTION
-    This script is used to give an account/group the required permissions for windows scanning with Lansweeper.
-.PARAMETER AccountNames
-    These are the accounts/groups to give permissions for Lansweeper scanning. Multiple names are supported by using a "," as delimiter.
-.PARAMETER LogFile
-    This specifies the location where the logfile will be created.
-.PARAMETER LogLevel
-    This specifies the amount of logging.
-        0 = No Logging
-        1 = Basic Logging
-        2 = Verbose Logging
-.PARAMETER NoEventLog
-    If this flag is specified, the script will not log to event log.
-.PARAMETER NoWindowsScanning
-    If this flag is specified, the script will not configure Windows scanning permissions.
-.PARAMETER NoSQLScanning
-    If this flag is specified, the script will not configure SQL scanning permissions.
+    Changes local scanning-related permissions. Run elevated and test on a nonproduction device first.
+.PARAMETER accountNames
+    One or more account or group names, separated by commas.
+.PARAMETER logFile
+    Log destination; defaults to C:\Windows\Temp\LansweeperScanningSetupLog.txt.
+.PARAMETER logLevel
+    0 = none, 1 = basic (default), 2 = verbose.
+.PARAMETER noEventLog
+    Do not write to the Windows Application event log.
 .EXAMPLE
-    This will give the account "contoso\LansweeperScanner" permissions to scan the computer. It will log basic information to eventlog (Application) and "C:\Windows\Temp\LansweeperScanningSetupLog.txt"
-    Configure-WindowsScanning.ps1 'contoso\LansweeperScanner"
+    .\Configure_WindowsScanning.ps1 -accountNames 'EXAMPLE\ScanUsers'
 .EXAMPLE
-    This will give the accounts "contoso\LansweeperScanner" and "contoso\BackupLansweeperScanner" permissions to scan the computer. It will log all information to "C:\CustomLogLocation.txt" and nothing to event log.
-    Configure-WindowsScanning.ps1 -AccountName "contoso\LansweeperScanner,contoso\BackupLansweeperScanner" -LogFile 'C:\CustomLogLocation.txt' -LogLevel 2 -NoEventLog
-.OUTPUTS
-    /
-.NOTES
-    Highest EventID number = 40
+    .\Configure_WindowsScanning.ps1 -accountNames 'EXAMPLE\ScanUsers,EXAMPLE\BackupScanUsers' -logLevel 2 -noEventLog
 #>
 param (
     [Parameter(Position = 0, Mandatory = $True)]

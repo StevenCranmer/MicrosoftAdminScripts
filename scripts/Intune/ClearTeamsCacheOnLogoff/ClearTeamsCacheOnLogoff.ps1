@@ -1,5 +1,8 @@
 # Example: .\ClearTeamsCacheOnLogoff.ps1
 # Variables: $TeamsCacheRoot uses the current user APPDATA path; change it if Teams data is stored elsewhere.
+# Purpose: Clear selected classic Teams cache folders for the current user.
+# Requires: Run at user logoff or after Teams has closed; check $TeamsCacheRoot.
+# Effect: Deletes cache folders and TXT files under the configured Teams profile path.
 #
 $TeamsCacheRoot = Join-Path $env:APPDATA "Microsoft\Teams"
 Remove-Item "$TeamsCacheRoot\Logs" -Force -Recurse -ErrorAction SilentlyContinue

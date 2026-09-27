@@ -1,5 +1,8 @@
 # Example: .\Set-PhotoUpdatePolicy.ps1 -ShowCurrent
 # Variables: Use -ShowCurrent to inspect; the Allow* switches select who may update profile photos.
+# Purpose: Inspect or configure who may update Microsoft 365 profile photos.
+# Requires: Microsoft.Graph.Authentication and PeopleSettings.ReadWrite.All rights.
+# Effect: ShowCurrent is read-only; other modes change tenant-wide beta policy. Use -WhatIf to preview.
 #
 <#
 .SYNOPSIS
@@ -71,6 +74,23 @@ param(
 )
 
 # Optional: lift function cap on Windows PowerShell 5.1
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication')
 if ($PSVersionTable.PSEdition -eq 'Desktop') { $MaximumFunctionCount = 32768 }
 
 # Minimal import

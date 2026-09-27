@@ -1,5 +1,8 @@
 # Example: .\Detect-M365AppUpdate.ps1
 # Variables: Update $targetVersions before deployment; it contains the minimum Office versions for each channel.
+# Purpose: Compare installed Microsoft 365 Apps version with channel thresholds.
+# Requires: Microsoft 365 Apps installed; update $targetVersions to current supported minimums.
+# Effect: Read-only detection; its thresholds are hard-coded and must be reviewed before deployment.
 #
 # See Microsoft 365 Apps Version history https://learn.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date#version-history
 

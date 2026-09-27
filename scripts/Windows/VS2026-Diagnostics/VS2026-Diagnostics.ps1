@@ -1,5 +1,8 @@
 # Example: .\VS2026-Diagnostics.ps1
 # Variables: Set $OutRoot and $ZipPath to the desired output locations.
+# Purpose: Collect Visual Studio and system diagnostics into a ZIP.
+# Requires: Windows PowerShell with access to system logs and the configured C:\Temp output paths.
+# Effect: Replaces existing output folder and ZIP; archive can include user and machine data.
 #
 $OutRoot = 'C:\Temp\VS2026-Diagnostics'
 $ZipPath = 'C:\Temp\VS2026-Diagnostics.zip'

@@ -1,5 +1,8 @@
 # Example: .\Remove-EntraDeviceOwnership.ps1 -ServiceAccountUpn 'service@example.com' -DryRun
 # Variables: -ServiceAccountUpn selects the account; -DryRun previews changes; -OutputCsv chooses the report file.
+# Purpose: Remove a named account from Entra device registered-owner links.
+# Requires: Microsoft.Entra module and scopes in $scopes; installation is offered if needed.
+# Effect: Writes an audit CSV; use -DryRun first, since live mode removes owner links.
 #
 param(
     [Parameter(Mandatory = $true)]
@@ -11,10 +14,23 @@ param(
 )
 
 # Ensure Microsoft.Entra is available
-if (-not (Get-Module -ListAvailable -Name Microsoft.Entra)) {
-    Write-Host "Microsoft.Entra module not found. Installing for CurrentUser..." -ForegroundColor Yellow
-    Install-Module Microsoft.Entra -Scope CurrentUser -Force -AllowClobber
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
 }
+Assert-RequiredModules -Names @('Microsoft.Entra')
 Import-Module Microsoft.Entra -Force
 
 # Connect with required delegated scopes

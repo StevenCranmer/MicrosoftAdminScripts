@@ -1,5 +1,8 @@
 # Example: .\RemoveDeviceGroupPrimaryUsers.ps1 -GroupDisplayName 'Example Devices'
 # Variables: Replace example parameter values with your own. Run Get-Help for parameter details where available.
+# Purpose: Clear Intune primary users for devices in an Entra device group.
+# Requires: Microsoft.Graph.Authentication and delegated Graph rights listed below.
+# Effect: Deletes primary-user relationships; use -WhatIf to inspect the target set first.
 #
 <#
 .SYNOPSIS
@@ -33,6 +36,23 @@ param(
     [string]$GroupDisplayName
 )
 
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication')
 if (-not $GroupId -and -not $GroupDisplayName) {
     throw "Specify either -GroupId or -GroupDisplayName."
 }
@@ -42,10 +62,6 @@ if ($GroupId -and $GroupDisplayName) {
 }
 
 # Install module if missing
-if (-not (Get-Module Microsoft.Graph.Authentication -ListAvailable)) {
-    Install-Module Microsoft.Graph -Scope CurrentUser -Force
-}
-
 Import-Module Microsoft.Graph.Authentication
 
 $Scopes = @(

@@ -4,6 +4,8 @@
 
 Small administration scripts for Microsoft 365, Intune, Windows, Active Directory, and related tasks. Each script has its own folder. Any sample input or configuration file needed to try it is in that folder.
 
+Browse the [script catalog](SCRIPT_CATALOG.md) to find a task and see what each script changes or produces.
+
 | Folder | Contents |
 | --- | --- |
 | `scripts/ActiveDirectory` | AD user and group tasks |
@@ -16,10 +18,10 @@ Small administration scripts for Microsoft 365, Intune, Windows, Active Director
 
 ## Using a script
 
-1. Open the script's folder and read the first two comment lines for a sample command and the values you need to set. Read the rest of the script before running it, especially for changes or deletions.
+1. Open the script's folder and read the opening comments for a sample command, prerequisites, editable values, and effects. Read the rest of the script before running it, especially for changes or deletions.
 2. If the folder has an `.example.csv` or other example file, copy it to a new file and replace all dummy values. Keep files containing real accounts, passwords, or tenant data outside this repository.
 3. Run the script from its own folder so relative paths in the example commands resolve there. PowerShell scripts use `./ScriptName.ps1` in PowerShell; Python scripts use `python ./script_name.py`.
-4. Install any modules or tools mentioned in the script and connect to the required service before running it. Intune detection and remediation scripts are intended for their respective deployment contexts.
+4. Run an interactive script. If it needs a missing PowerShell Gallery module, Python package, or Windows administration feature, it will offer to install it and then request the relevant sign-in. Windows feature installation requires an elevated PowerShell session. You can decline and install the prerequisite yourself. Intune detection and remediation scripts run unattended, so they report missing prerequisites without asking questions.
 
 Scripts can change or remove users, devices, teams, files, and settings. Review the target values and use a preview or `-WhatIf` option when the script provides one.
 

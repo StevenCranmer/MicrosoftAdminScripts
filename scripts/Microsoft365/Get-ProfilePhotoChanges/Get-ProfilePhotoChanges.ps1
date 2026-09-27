@@ -1,5 +1,8 @@
 # Example: .\Get-ProfilePhotoChanges.ps1 -DaysBack 7 -CsvPath .\photo-changes.csv
 # Variables: -DaysBack sets the date range; -CsvPath and -RawJsonPath choose output files; -UserIds filters users.
+# Purpose: Find profile-photo change events in the Unified Audit Log.
+# Requires: ExchangeOnlineManagement and rights to search the audit log.
+# Effect: Writes CSV and raw JSON with account identifiers; keep exports private.
 #
 <#
 .SYNOPSIS
@@ -31,6 +34,23 @@ param(
     [string[]]$UserIds
 )
 
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('ExchangeOnlineManagement')
 $ErrorActionPreference = 'Continue'
 
 # ---------------------------

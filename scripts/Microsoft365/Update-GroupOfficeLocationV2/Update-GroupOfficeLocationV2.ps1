@@ -1,5 +1,8 @@
 # Example: .\Update-GroupOfficeLocationV2.ps1 -GroupId '<GROUP_ID>' -NewOfficeLocation 'Example Office'
 # Variables: -GroupId selects the group; -NewOfficeLocation is the office value to assign.
+# Purpose: Set OfficeLocation for direct user members of an Entra group.
+# Requires: Microsoft.Graph commands and User.ReadWrite.All plus GroupMember.Read.All rights.
+# Effect: Updates user profiles; failures are reported to the console.
 #
 # correct format for running script is:
 # .\Update-GroupOfficeLocationV2.ps1 -GroupId "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" -NewOfficeLocation "string"
@@ -13,13 +16,33 @@ param (
 )
 
 # Gentle reminder to connect with required scopes
-Write-Host "Make sure you're connected to Microsoft Graph with the right scopes before running this script." -ForegroundColor Yellow
-Write-Host "Use: Connect-MgGraph -Scopes 'User.ReadWrite.All','GroupMember.Read.All'" -ForegroundColor Yellow
-
-# Best-effort check for a connected context
-try { $null = Get-MgContext -ErrorAction Stop } catch {
-    Write-Warning "Not connected to Microsoft Graph. Run: Connect-MgGraph -Scopes 'User.ReadWrite.All','GroupMember.Read.All'"
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
 }
+Assert-RequiredModules -Names @('Microsoft.Graph.Authentication','Microsoft.Graph.Groups','Microsoft.Graph.Users')
+$requiredScopes = @('User.ReadWrite.All','GroupMember.Read.All')
+$graphContext = Get-MgContext
+$missingScopes = if ($graphContext -and $graphContext.AuthType -ne "AppOnly") {
+    @($requiredScopes | Where-Object { $_ -notin @($graphContext.Scopes) })
+} else { @() }
+if (-not $graphContext -or $missingScopes.Count) {
+    Write-Host "Microsoft Graph sign-in is required; a sign-in prompt will open."
+    Connect-MgGraph -Scopes $requiredScopes -NoWelcome -ErrorAction Stop | Out-Null
+}
+
 
 # Track failures (only real failures against users)
 $failed = [System.Collections.Generic.List[psobject]]::new()

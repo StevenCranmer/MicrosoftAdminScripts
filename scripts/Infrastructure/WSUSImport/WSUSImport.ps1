@@ -1,5 +1,8 @@
 # Example: .\WSUSImport.ps1 -UpdateIdFilePath .\wsus-update-ids.example.txt
 # Variables: Use -UpdateId for one catalog ID or -UpdateIdFilePath for a text file with one ID per line; see .\wsus-update-ids.example.txt.
+# Purpose: Import one or more Microsoft Update Catalog IDs into WSUS.
+# Requires: UpdateServices PowerShell commands and WSUS administration rights.
+# Effect: Imports updates on the selected WSUS server; the example ID file contains only a dummy ID.
 #
 <#
 .SYNOPSIS
@@ -33,7 +36,7 @@ Writes logging information to standard output.
 
 .EXAMPLE
 # Use with localhost default port, file with updateID's
-.\WSUSImport.ps1 -UpdateIdFilePath .\file.txt
+.\WSUSImport.ps1 -UpdateIdFilePath .\wsus-update-ids.example.txt
 
 .NOTES  
 # On error, try enabling TLS: https://learn.microsoft.com/mem/configmgr/core/plan-design/security/enable-tls-1-2-client
@@ -83,6 +86,29 @@ param(
 Set-StrictMode -Version Latest
 
 # set server options
+# Windows administration tools are installed as OS features, not from PSGallery.
+if (-not (Get-Module -ListAvailable -Name UpdateServices)) {
+    $answer = Read-Host "UpdateServices tools are missing. Install the Windows administration tools now? [y/N]"
+    if ($answer -notmatch '^(?i:y|yes)$') {
+        throw "UpdateServices tools are required. Install them through Windows optional features or Server Manager, then rerun."
+    }
+    $isAdministrator = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdministrator) {
+        throw 'Installing Windows administration tools requires an elevated PowerShell session. Reopen PowerShell as administrator and rerun.'
+    }
+    $isServer = (Get-CimInstance Win32_OperatingSystem -ErrorAction Stop).ProductType -ne 1
+    if ($isServer) {
+        if (-not (Get-Command Install-WindowsFeature -ErrorAction SilentlyContinue)) { throw 'Install-WindowsFeature is unavailable. Install the tools through Server Manager.' }
+        $result = Install-WindowsFeature -Name 'UpdateServices-RSAT' -ErrorAction Stop
+        if (-not $result.Success) { throw 'Windows reported that the feature installation did not succeed.' }
+    } else {
+        if (-not (Get-Command Add-WindowsCapability -ErrorAction SilentlyContinue)) { throw 'Add-WindowsCapability is unavailable. Install the tools through Windows optional features.' }
+        $result = Add-WindowsCapability -Online -Name 'Rsat.WSUS.Tools~~~~0.0.1.0' -ErrorAction Stop
+        if ($result.RestartNeeded) { throw 'The tools need a restart before they can be used. Restart Windows, then rerun.' }
+    }
+}
+Import-Module UpdateServices -ErrorAction Stop
+
 $serverOptions = "Get-WsusServer"
 if ($psBoundParameters.containsKey('WsusServer')) { $serverOptions += " -Name $WsusServer -PortNumber $PortNumber" }
 if ($UseSsl) { $serverOptions += " -UseSsl" }

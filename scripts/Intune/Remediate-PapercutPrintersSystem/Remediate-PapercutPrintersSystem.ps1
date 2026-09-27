@@ -1,6 +1,13 @@
 # Example: .\Remediate-PapercutPrintersSystem.ps1
 # Variables: Set $TargetNames to the machine-wide printer queue names to remove.
+# Purpose: Remove the configured machine-wide printer queues.
+# Requires: PrintManagement cmdlets and rights to remove printers; set $TargetNames.
+# Effect: Deletes matching queues; this variant does not remove drivers.
 #
+foreach ($command in @('Get-Printer', 'Remove-Printer')) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Windows PrintManagement command $command is unavailable on this device." }
+}
+
 # Remove machine-wide printers and clean related drivers if unused
 $TargetNames = @("ExamplePrinter_Mono","ExamplePrinter_Colour")
 

@@ -1,5 +1,8 @@
 # Example: .\Archive-TeamsFromCsv.ps1 -CsvPath .\teams.example.csv
 # Variables: -CsvPath is a CSV with a TeamId column; replace the dummy ID before running.
+# Purpose: Archive Teams listed by TeamId in the CSV.
+# Requires: MicrosoftTeams module, Teams administration rights, and teams.example.csv as a template.
+# Effect: Shows a target summary and asks for confirmation before archiving.
 #
 [CmdletBinding()]
 param(
@@ -8,6 +11,23 @@ param(
     [string]$CsvPath
 )
 
+# Check installable prerequisites before making changes or connecting to a service.
+function Assert-RequiredModules {
+    param([Parameter(Mandatory)][string[]]$Names)
+    $missing = @($Names | Where-Object { -not (Get-Module -ListAvailable -Name $_) })
+    if ($missing.Count) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            throw "Missing modules: $($missing -join ', '). Install PowerShellGet, then install these modules and rerun."
+        }
+        $answer = Read-Host "Missing modules: $($missing -join ', '). Install for CurrentUser from PSGallery? (Y/N)"
+        if ($answer -notmatch '^(?i:y|yes)$') { throw "Required modules were not installed: $($missing -join ', ')" }
+        foreach ($name in $missing) {
+            Install-Module -Name $name -Scope CurrentUser -Repository PSGallery -Force -AllowClobber -ErrorAction Stop
+        }
+    }
+    foreach ($name in $Names) { Import-Module $name -ErrorAction Stop }
+}
+Assert-RequiredModules -Names @('MicrosoftTeams')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
